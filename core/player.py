@@ -5,7 +5,7 @@ from core.assets import SHIP_LEFT, SHIP_IDLE, SHIP_RIGHT
 class Spaceship:
     def __init__(self):
         self.image = SHIP_IDLE
-        self.rect = self.image.get_rect(midbottom=(WIDTH//2, HEIGHT-40))
+        self.rect = self.image.get_rect(midbottom=(WIDTH//2, HEIGHT-100))
         self.speed = 5
 
     def update(self, keys):
