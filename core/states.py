@@ -93,7 +93,12 @@ class PlayState(BaseState):
     def update(self, dt):
         keys = pygame.key.get_pressed()
         self.ship.update(keys)
-        for b in self.bullets: b.update()
+
+        for t in self.lvl.targets:
+            t.update() 
+
+        for b in self.bullets:
+            b.update()
 
         for b in self.bullets:
             for t in self.lvl.targets:
@@ -107,7 +112,6 @@ class PlayState(BaseState):
             if self.hp:
                 self.mgr.change("LOSE", {"level": self.lvl_file, "hp": self.hp})
             else:
-                #perde global
                 self.mgr.change("GLOBAL_LOSE", {"level": self.lvl_file})
 
         if all(t.dead for t in self.lvl.targets):
@@ -115,6 +119,7 @@ class PlayState(BaseState):
                 self.mgr.change("WIN", {"next": self.lvl.next})
             else:
                 self.mgr.change("FIN")
+
 
     def draw(self, surf):
         surf.blit(BACKGROUND, (0, 0))

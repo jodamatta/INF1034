@@ -13,6 +13,6 @@ class Level:
 
 def load_level(name):
     cfg = json.loads((DATA/name).read_text())
-    targets = [Target(t["x"], t["y"]) for t in cfg["targets"]]
+    targets = [Target(t["x"], t["y"], t.get("movement")) for t in cfg["targets"]]
     return Level(targets=targets, ammo=cfg.get("ammo", 0), next=cfg.get("next"))
 
