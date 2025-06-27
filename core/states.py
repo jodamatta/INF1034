@@ -3,16 +3,20 @@ import pygame
 from typing import Any
 
 from core.assets import load_bg, HEART
-from core.level import load_level, Level
+from core.level import Level, LevelManager
 from core.player import Spaceship
 from core.bullet import Bullet
+from core.score import save_score, load_scores, ScoreManager
 from settings import WIDTH, HEIGHT
 
 FONT_BIG = pygame.font.Font(None, 64)
 FONT_MID = pygame.font.Font(None, 48)
 FONT_SMALL = pygame.font.Font(None, 32)
-STARTING_LEVEL = "1.json"
 BACKGROUND = load_bg()
+STARTING_LEVEL = 0
+
+level_manager = LevelManager()
+
 
 def write_centered(surf, font, text, y, color="white"):
     img = font.render(text, True, color)
@@ -73,19 +77,24 @@ class PlayState(BaseState):
     def __init__(self, mgr: StateManager, data: Any = None):
         self.bullets: list[Bullet] | None = None
         self.ship: Spaceship | None = None
-        self.lvl_file: str | None = None
         self.lvl: Level | None = None
         self.hp: int | None = None
         super().__init__(mgr, data)
 
     def enter(self, data):
-        self.lvl_file = data["level"]
         self.hp = data.get("hp", 3)
-        self.lvl = load_level(self.lvl_file)
+        self.lvl = level_manager.get_level(data["level"])
         self.ship, self.bullets = Spaceship(), []
 
     def handle_event(self, e):
-        if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
+        if e.type != pygame.KEYDOWN:
+            return
+
+        if e.key == pygame.K_p:
+            self.advance()
+            return
+
+        if e.key == pygame.K_SPACE:
             if self.lvl.ammo:
                 self.bullets.append(Bullet(self.ship.rect.centerx, self.ship.rect.top))
                 self.lvl.ammo -= 1
@@ -109,20 +118,23 @@ class PlayState(BaseState):
 
         if self.lvl.ammo == 0 and len(self.bullets) == 0:
             self.hp -= 1
-            if self.hp:
-                self.mgr.change("LOSE", {"level": self.lvl_file, "hp": self.hp})
+            if self.hp >= 0:
+                self.mgr.change("LOSE", {"level": self.lvl.idx, "hp": self.hp})
             else:
-                self.mgr.change("GLOBAL_LOSE", {"level": self.lvl_file})
+                self.mgr.change("GLOBAL_LOSE", {"level": self.lvl.idx})
 
         if all(t.dead for t in self.lvl.targets):
-            if self.lvl.next:
-                self.mgr.change("WIN", {"next": self.lvl.next})
-            else:
-                self.mgr.change("FIN")
-
+            self.advance()
+    def advance(self):
+        ScoreManager.not_used_bullets += self.lvl.ammo
+        if self.lvl.idx + 1 < level_manager.count:
+            self.mgr.change("WIN", {"next": self.lvl.idx + 1, "hp": self.hp})
+        else:
+            self.mgr.change("FIN", {"score": ScoreManager.get_score(self.hp)})
 
     def draw(self, surf):
         surf.blit(BACKGROUND, (0, 0))
+        write_centered(surf, FONT_MID, f"fase {self.lvl.idx + 1}/{level_manager.count}", 10)
         self.ship.draw(surf)
         for t in self.lvl.targets: t.draw(surf)
         for b in self.bullets: b.draw(surf)
@@ -136,15 +148,17 @@ class WinState(BaseState):
 
     def __init__(self, mgr: StateManager, data: Any = None):
         self.next_lvl = None
+        self.hp = None
         super().__init__(mgr, data)
 
     def enter(self, data):
         self.next_lvl = data["next"]
+        self.hp = data.get("hp", 3)
 
     def handle_event(self, e):
         if e.type != pygame.KEYDOWN: return
         if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-            self.mgr.change("PLAY", {"level": self.next_lvl})
+            self.mgr.change("PLAY", {"level": self.next_lvl, "hp": self.hp})
         elif e.key in (pygame.K_ESCAPE, pygame.K_q):
             pygame.quit()
             sys.exit()
@@ -208,16 +222,50 @@ class GlobalLoseState(BaseState):
 class FinishedState(BaseState):
     id = "FIN"
 
+    def __init__(self, mgr: StateManager, data: Any = None):
+        self.score: int = 0
+        self.name: str = ""
+        self.saved: bool = False
+        self.scores: list[dict] = []
+        super().__init__(mgr, data)
+
+    def enter(self, data: dict):
+        self.score  = data.get("score", 0)
+        print(data.get("score"))
+        self.scores = load_scores()
+
     def handle_event(self, e):
-        if e.type != pygame.KEYDOWN: return
-        if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_r):
-            self.mgr.change("PLAY", {"level": STARTING_LEVEL})
-        elif e.key in (pygame.K_ESCAPE, pygame.K_q):
-            pygame.quit()
-            sys.exit()
+        if e.type != pygame.KEYDOWN:
+            return
+
+        if self.saved:
+            if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                ScoreManager.not_used_bullets = 0
+                self.mgr.change("PLAY", {"level": STARTING_LEVEL})
+            elif e.key in (pygame.K_ESCAPE, pygame.K_q):
+                pygame.quit(); sys.exit()
+            return
+
+        if e.key == pygame.K_BACKSPACE:
+            self.name = self.name[:-1]
+        elif e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.scores = save_score(self.name or "ANON", self.score)
+            self.saved  = True
+        elif len(self.name) < 10 and e.unicode.isprintable():
+            self.name += e.unicode.upper()
 
     def draw(self, surf):
         surf.fill("black")
-        write_centered(surf, FONT_BIG, "Parabens!", HEIGHT // 2 - 150)
-        write_centered(surf, FONT_SMALL, "ENTER = jogar novamente | ESC = sair", HEIGHT // 2 - 100)
+        y = HEIGHT // 2 - 180
+        write_centered(surf, FONT_BIG, f"Score: {self.score}", y); y += 70
 
+        if not self.saved:
+            write_centered(surf, FONT_MID, "Digite seu nome:", y); y += 50
+            write_centered(surf, FONT_MID, self.name + "_", y)
+        else:
+            write_centered(surf, FONT_MID, "LEADERBOARD", y); y += 50
+            for i, s in enumerate(self.scores, 1):
+                txt = f"{i:2d}. {s['name']:<10} {s['score']:>5}"
+                write_centered(surf, FONT_SMALL, txt, y); y += 35
+            y += 40
+            write_centered(surf, FONT_SMALL, "ENTER = jogar de novo   |   ESC = sair", y)
