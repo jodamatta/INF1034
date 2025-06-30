@@ -1,10 +1,10 @@
 import pygame
-from core.assets import HEART, BULLET_SPRITE, DESTROYED_TGT
+from core.assets import HEART, BULLET_IMGS, DESTROYED_TGT
 
 class PowerUp:
     TYPE_SPRITES: dict[str, pygame.Surface] = {
         "hp": HEART,
-        "ammo": BULLET_SPRITE,
+        "ammo": BULLET_IMGS["up"],  
         "speed": DESTROYED_TGT,
     }
 

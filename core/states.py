@@ -79,6 +79,7 @@ class PlayState(BaseState):
 
     def __init__(self, mgr: StateManager, data: Any = None):
         self.bullets: list[Bullet] = []
+        self.enemy_bullets: list[Bullet] = []
         self.powerups: list[PowerUp] = []
         self.ship: Spaceship | None = None
         self.lvl: Level | None = None
@@ -110,6 +111,11 @@ class PlayState(BaseState):
             if self.lvl.ammo:
                 self.bullets.append(Bullet(self.ship.rect.centerx, self.ship.rect.top, speed=self.bullet_speed))
                 self.lvl.ammo -= 1
+                for cannon in self.lvl.cannons:
+                    bullet = cannon.fire()
+                    if bullet:
+                        self.enemy_bullets.append(bullet)  
+
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
@@ -130,6 +136,10 @@ class PlayState(BaseState):
                     if not t.dead:
                         t.hit()
                     b.active = False
+            for c in self.lvl.cannons:
+                if c.active and b.rect.colliderect(c.rect):
+                    c.hit()
+                    b.active = False
 
         for b in self.bullets:
             if not b.active:
@@ -142,6 +152,30 @@ class PlayState(BaseState):
 
         self.bullets = [b for b in self.bullets if b.active]
 
+        for b in self.enemy_bullets:
+            b.update()
+        self.enemy_bullets = [b for b in self.enemy_bullets if b.active]
+
+        for b in self.enemy_bullets:
+            if b.rect.colliderect(self.ship.rect):
+                b.active = False
+                self.hp -= 1
+                if self.hp:
+                    self.mgr.change("LOSE", {"level": self.lvl.idx, "hp": self.hp})
+                else:
+                    self.mgr.change("GLOBAL_LOSE", {"level": self.lvl.idx})
+
+        for b in self.enemy_bullets:
+            for t in self.lvl.targets:
+                if b.rect.colliderect(t.rect):
+                    t.hit()
+                    b.active = False
+            for c in self.lvl.cannons:
+                if c.active and b.rect.colliderect(c.rect):
+                    if b.source != "cannon":
+                        c.hit()
+                        b.active = False
+
         if self.lvl.ammo == 0 and len(self.bullets) == 0:
             self.hp -= 1
             if self.hp >= 0:
@@ -151,6 +185,7 @@ class PlayState(BaseState):
 
         if all(t.dead for t in self.lvl.targets):
             self.advance()
+
     def advance(self):
         ScoreManager.not_used_bullets += self.lvl.ammo
         if self.lvl.idx + 1 < level_manager.count:
@@ -165,6 +200,9 @@ class PlayState(BaseState):
         for t in self.lvl.targets: t.draw(surf)
         for p in self.powerups: p.draw(surf)
         for b in self.bullets: b.draw(surf)
+        for c in self.lvl.cannons: c.draw(surf)
+        for b in self.enemy_bullets: b.draw(surf)
+
         surf.blit(FONT_MID.render(f"x{self.lvl.ammo}", True, "YELLOW"),
                   (25, HEIGHT - 64))
         for i in range(self.hp):
