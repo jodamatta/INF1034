@@ -1,22 +1,13 @@
 {
   "background_rect": [128, 0, 128, 128],
   "targets": [
-    {
-      "x": 100, "y": 100,
-      "movement": {
-        "start": [100, 100],
-        "end": [350, 350],
-        "speed": 0.015
-      }
-    },
-    {
-      "x": 350, "y": 100,
-      "movement": {
-        "start": [350, 100],
-        "end": [100, 350],
-        "speed": 0.015
-      }
-    }
+    { "x": 100, "y": 100, "movement": { "start": [100,100], "end": [450,100], "speed": 0.02 } },
+    { "x": 450, "y": 180, "movement": { "start": [450,180], "end": [100,180], "speed": 0.02 } },
+    { "x": 100, "y": 260, "movement": { "start": [100,260], "end": [450,260], "speed": 0.015 } }
   ],
-  "ammo": 3
+  "powerups": [
+    { "type": "hp", "value": 1, "x": 300, "y": 340,
+      "movement": { "start": [300,340], "end": [200,340], "speed": 0.015 } }
+  ],
+  "ammo": 5
 }

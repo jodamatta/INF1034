@@ -6,6 +6,7 @@ from core.assets import load_bg, HEART
 from core.level import Level, LevelManager
 from core.player import Spaceship
 from core.bullet import Bullet
+from core.powerup import PowerUp
 from core.score import save_score, load_scores, ScoreManager
 from settings import WIDTH, HEIGHT
 
@@ -74,29 +75,40 @@ class BootState(BaseState):
 class PlayState(BaseState):
     id = "PLAY"
 
+    collected_hp_levels: set[int] = set()
+
     def __init__(self, mgr: StateManager, data: Any = None):
-        self.bullets: list[Bullet] | None = None
+        self.bullets: list[Bullet] = []
+        self.powerups: list[PowerUp] = []
         self.ship: Spaceship | None = None
         self.lvl: Level | None = None
-        self.hp: int | None = None
+        self.hp: int = 3
+        self.bullet_speed: int = 16
         super().__init__(mgr, data)
 
     def enter(self, data):
         self.hp = data.get("hp", 3)
+        self.bullet_speed = data.get("bullet_speed", 16)
         self.lvl = level_manager.get_level(data["level"])
-        self.ship, self.bullets = Spaceship(), []
+        self.ship = Spaceship()
+        self.bullets = []
+        self.powerups = [
+            p for p in self.lvl.powerups
+            if not (p.kind == "hp" and self.lvl.idx in PlayState.collected_hp_levels)
+        ]
 
     def handle_event(self, e):
         if e.type != pygame.KEYDOWN:
             return
 
         if e.key == pygame.K_p:
+            self.lvl.ammo = max(self.lvl.ammo - len(self.lvl.targets), 0)
             self.advance()
             return
 
         if e.key == pygame.K_SPACE:
             if self.lvl.ammo:
-                self.bullets.append(Bullet(self.ship.rect.centerx, self.ship.rect.top))
+                self.bullets.append(Bullet(self.ship.rect.centerx, self.ship.rect.top, speed=self.bullet_speed))
                 self.lvl.ammo -= 1
 
     def update(self, dt):
@@ -109,11 +121,25 @@ class PlayState(BaseState):
         for b in self.bullets:
             b.update()
 
+        for p in self.powerups:
+            p.update()
+
         for b in self.bullets:
             for t in self.lvl.targets:
                 if b.rect.colliderect(t.rect):
-                    t.hit()
+                    if not t.dead:
+                        t.hit()
                     b.active = False
+
+        for b in self.bullets:
+            if not b.active:
+                continue
+            for p in self.powerups:
+                if not p.collected and b.rect.colliderect(p.rect):
+                    self.apply_power_up(p.kind, p.value)
+                    p.collect()
+                    b.active = False
+
         self.bullets = [b for b in self.bullets if b.active]
 
         if self.lvl.ammo == 0 and len(self.bullets) == 0:
@@ -137,18 +163,30 @@ class PlayState(BaseState):
         write_centered(surf, FONT_MID, f"fase {self.lvl.idx + 1}/{level_manager.count}", 10)
         self.ship.draw(surf)
         for t in self.lvl.targets: t.draw(surf)
+        for p in self.powerups: p.draw(surf)
         for b in self.bullets: b.draw(surf)
         surf.blit(FONT_MID.render(f"x{self.lvl.ammo}", True, "YELLOW"),
                   (25, HEIGHT - 64))
         for i in range(self.hp):
             surf.blit(HEART, (WIDTH - 15 - (i+1) * 50, HEIGHT - 68))
 
+    def apply_power_up(self, kind: str, value: int):
+        match kind:
+            case "hp":
+                if self.lvl.idx not in PlayState.collected_hp_levels:
+                    PlayState.collected_hp_levels.add(self.lvl.idx)
+                self.hp = min(self.hp + value, 5)
+            case "ammo":
+                self.lvl.ammo += value
+            case "speed":
+                self.bullet_speed += value * 2
+
 class WinState(BaseState):
     id = "WIN"
 
     def __init__(self, mgr: StateManager, data: Any = None):
-        self.next_lvl = None
-        self.hp = None
+        self.next_lvl: int | None = None
+        self.hp: int = 3
         super().__init__(mgr, data)
 
     def enter(self, data):
@@ -157,6 +195,7 @@ class WinState(BaseState):
 
     def handle_event(self, e):
         if e.type != pygame.KEYDOWN: return
+        
         if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             self.mgr.change("PLAY", {"level": self.next_lvl, "hp": self.hp})
         elif e.key in (pygame.K_ESCAPE, pygame.K_q):
@@ -173,8 +212,8 @@ class LoseState(BaseState):
     id = "LOSE"
 
     def __init__(self, mgr: StateManager, data: Any = None):
-        self.lvl_file = None
-        self.nxt_hp = None
+        self.lvl_file: int | None = None
+        self.nxt_hp: int = 3
         super().__init__(mgr, data)
 
     def enter(self, data):
@@ -231,7 +270,6 @@ class FinishedState(BaseState):
 
     def enter(self, data: dict):
         self.score  = data.get("score", 0)
-        print(data.get("score"))
         self.scores = load_scores()
 
     def handle_event(self, e):

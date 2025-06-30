@@ -2,6 +2,7 @@ import json, pathlib
 
 from dataclasses import dataclass
 from core.target import Target
+from core.powerup import PowerUp
 
 DATA = pathlib.Path(__file__).parents[1] / "levels"
 
@@ -9,12 +10,20 @@ DATA = pathlib.Path(__file__).parents[1] / "levels"
 class Level:
     idx: int
     targets: list
+    powerups: list
     ammo: int
 
 def load_level(name, idx):
     cfg = json.loads((DATA/name).read_text())
     targets = [Target(t["x"], t["y"], t.get("movement")) for t in cfg["targets"]]
-    return Level(idx=idx, targets=targets, ammo=cfg.get("ammo", 0))
+
+    powerups_cfg = cfg.get("powerups", [])
+    powerups = [
+        PowerUp(p["type"], p["x"], p["y"], p.get("value", 1), p.get("movement"))
+        for p in powerups_cfg
+    ]
+
+    return Level(idx=idx, targets=targets, powerups=powerups, ammo=cfg.get("ammo", 0))
 
 class LevelManager:
     def __init__(self, dir_path: pathlib.Path = DATA):
