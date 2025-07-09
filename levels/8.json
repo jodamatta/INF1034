@@ -1,0 +1,15 @@
+{
+  "background_rect": [128, 0, 128, 128],
+  "targets": [
+    { "x": 100, "y": 120, "movement": { "start": [100,100], "end": [450,100], "speed": 0.02 } },
+    { "x": 450, "y": 200, "movement": { "start": [450,180], "end": [100,180], "speed": 0.02 } },
+    { "x": 100, "y": 280, "movement": { "start": [100,260], "end": [450,260], "speed": 0.015 } }
+  ],
+  "powerups": [
+    { "type": "hp", "value": 1, "x": 300, "y": 340,
+      "movement": { "start": [300,340], "end": [200,340], "speed": 0.015 } }
+  ],
+   "cannons": [
+  { "x": 256, "y": 50, "direction": "down" }],
+  "ammo": 5
+}

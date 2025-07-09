@@ -2,7 +2,7 @@ import sys
 import pygame
 from typing import Any
 
-from core.assets import load_bg, HEART
+from core.assets import load_bg, HEART, POWERUPS, CANNON_IMGS, DESTROYED_CANNON_IMGS, SHIP_IDLE, LOGO
 from core.level import Level, LevelManager
 from core.player import Spaceship
 from core.bullet import Bullet
@@ -30,7 +30,7 @@ class StateManager:
     def __init__(self, first_id: str, first_data: Any = None):
         self.state = None
         self._registry: dict[str, type[BaseState]] = {}
-        for cls in (BootState, PlayState, WinState, LoseState, GlobalLoseState, FinishedState):
+        for cls in (BootState, InfoState, PlayState, WinState, LoseState, GlobalLoseState, FinishedState, RankingState):
             self._registry[cls.id] = cls
         self.change(first_id, first_data)
 
@@ -60,17 +60,105 @@ class BaseState:
 
     def draw(self, surf): pass
 
+def draw_multiline_centered(surf, font, text, top, color="white", line_spacing=10):
+    lines = text.split("\n")
+    y = top
+    for line in lines:
+        rendered = font.render(line, True, color)
+        rect = rendered.get_rect(midtop=(surf.get_width() // 2, y))
+        surf.blit(rendered, rect)
+        y += rendered.get_height() + line_spacing
+
+class InfoState(BaseState):
+    id = "INFO"
+
+    def __init__(self, mgr, data=None):
+        self.text = ""
+        self.image1 = None
+        self.image2 = None
+        self.subtitle1 = ""
+        self.subtitle2 = ""
+        self.next_state = "PLAY"
+        self.next_data = {}
+        super().__init__(mgr, data)
+
+    def enter(self, data):
+        self.text = data.get("text", "")
+        self.image1 = data.get("image1", None)
+        self.image2 = data.get("image2", None)
+        self.subtitle1 = data.get("subtitle1", "")
+        self.subtitle2 = data.get("subtitle2", "")
+        self.next_state = data.get("next_state", "PLAY")
+        self.next_data = data.get("next_data", {})
+
+    def handle_event(self, e):
+        if e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN:
+            self.mgr.change(self.next_state, self.next_data)
+
+    def draw(self, surf):
+        surf.fill("black")
+
+        write_centered(surf, FONT_BIG, "INSTRUÇÕES", 40)
+        draw_multiline_centered(surf, FONT_SMALL, self.text, 120)
+
+        y = 240  # posição vertical inicial para as imagens
+
+        if self.image1:
+            rect1 = self.image1.get_rect(midtop=(WIDTH // 2, y))
+            surf.blit(self.image1, rect1)
+            y = rect1.bottom + 8
+            sub1 = FONT_SMALL.render(self.subtitle1, True, "white")
+            sub1_rect = sub1.get_rect(midtop=(WIDTH // 2, y))
+            surf.blit(sub1, sub1_rect)
+            y = sub1_rect.bottom + 24
+
+        if self.image2:
+            rect2 = self.image2.get_rect(midtop=(WIDTH // 2, y))
+            surf.blit(self.image2, rect2)
+            y = rect2.bottom + 8
+            sub2 = FONT_SMALL.render(self.subtitle2, True, "white")
+            sub2_rect = sub2.get_rect(midtop=(WIDTH // 2, y))
+            surf.blit(sub2, sub2_rect)
+            y = sub2_rect.bottom + 24
+
+        write_centered(surf, FONT_SMALL, "Pressione ENTER para continuar", HEIGHT - 60)
 
 class BootState(BaseState):
     id = "BOOT"
 
+    def __init__(self, mgr, data=None):
+        self.options = ["Começar", "Ver ranking"]
+        self.selected = 0
+        self.ship_img = SHIP_IDLE  
+        super().__init__(mgr, data)
+
     def handle_event(self, e):
-        if e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN:
-            self.mgr.change("PLAY", {"level": STARTING_LEVEL})
+        if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_RETURN:
+                if self.selected == 0:
+                    self.mgr.change("PLAY", {"level": STARTING_LEVEL})
+                elif self.selected == 1:
+                    self.mgr.change("RANKING")  
+            elif e.key == pygame.K_UP:
+                self.selected = (self.selected - 1) % len(self.options)
+            elif e.key == pygame.K_DOWN:
+                self.selected = (self.selected + 1) % len(self.options)
 
     def draw(self, surf):
-        surf.fill("black")
-        write_centered(surf, FONT_MID, "ENTER para começar", HEIGHT // 2 - 150)
+        surf.blit(BACKGROUND, (0, 0))
+
+        surf.blit(LOGO, (WIDTH // 2 - LOGO.get_width() // 2, 50))
+
+        ship_rect = self.ship_img.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        surf.blit(self.ship_img, ship_rect)
+
+        base_y = HEIGHT - 200
+        for i, option in enumerate(self.options):
+            text = f"[ {option} ]" if i == self.selected else f"  {option}  "
+            color = "yellow" if i == self.selected else "white"
+            write_centered(surf, FONT_SMALL, text, base_y + i * 40, color)
+
+        write_centered(surf, FONT_SMALL, "Setas para navegar | ENTER para selecionar", HEIGHT - 50)
 
 class PlayState(BaseState):
     id = "PLAY"
@@ -216,8 +304,6 @@ class PlayState(BaseState):
                 self.hp = min(self.hp + value, 5)
             case "ammo":
                 self.lvl.ammo += value
-            case "speed":
-                self.bullet_speed += value * 2
 
 class WinState(BaseState):
     id = "WIN"
@@ -232,13 +318,29 @@ class WinState(BaseState):
         self.hp = data.get("hp", 3)
 
     def handle_event(self, e):
-        if e.type != pygame.KEYDOWN: return
-        
-        if e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-            self.mgr.change("PLAY", {"level": self.next_lvl, "hp": self.hp})
-        elif e.key in (pygame.K_ESCAPE, pygame.K_q):
-            pygame.quit()
-            sys.exit()
+        if e.type == pygame.KEYDOWN and e.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            if self.next_lvl == 5: 
+                self.mgr.change("INFO", {
+                    "text": "O canhão dispara junto com você",
+                    "image1": CANNON_IMGS["down"],
+                    "image2": DESTROYED_CANNON_IMGS["down"],
+                    "subtitle1": "Atire no canhão para destruí-lo",
+                    "subtitle2": "Você pode atirar no canhão para destruí-lo",
+                    "next_state": "PLAY",
+                    "next_data": {"level": self.next_lvl}
+                })
+            elif self.next_lvl == 1: 
+                self.mgr.change("INFO", {
+                    "text": "Atire nos power-ups para ativá-los.",
+                    "image1": POWERUPS["powerups1"],
+                    "image2": POWERUPS["powerups2"],
+                    "subtitle1": "AMMO: recupera munição",
+                    "subtitle2": "HP: recupera vida",
+                    "next_state": "PLAY",
+                    "next_data": {"level": self.next_lvl}
+                })
+            else:
+                self.mgr.change("PLAY", {"level": self.next_lvl})
 
     def draw(self, surf):
         surf.fill("black")
@@ -294,6 +396,35 @@ class GlobalLoseState(BaseState):
         surf.fill("black")
         write_centered(surf, FONT_BIG, "Sem vidas!", HEIGHT // 2 - 150)
         write_centered(surf, FONT_SMALL, "ENTER = recomeçar | ESC = sair", HEIGHT // 2 - 100)
+
+class RankingState(BaseState):
+    id = "RANKING"
+
+    def __init__(self, mgr: StateManager, data: Any = None):
+        self.scores = []
+        super().__init__(mgr, data)
+
+    def enter(self, data: Any = None):
+        self.scores = load_scores()
+
+    def handle_event(self, e):
+        if e.type == pygame.KEYDOWN:
+            if e.key in (pygame.K_ESCAPE, pygame.K_q):
+                pygame.quit(); sys.exit()
+            elif e.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_BACKSPACE):
+                self.mgr.change("BOOT")
+
+    def draw(self, surf):
+        surf.fill("black")
+        write_centered(surf, FONT_BIG, "LEADERBOARD", 80)
+
+        y = 160
+        for i, s in enumerate(self.scores[:10], 1):
+            txt = f"{i:2d}. {s['name']:<10} {s['score']:>5}"
+            write_centered(surf, FONT_SMALL, txt, y)
+            y += 35
+
+        write_centered(surf, FONT_SMALL, "ENTER = voltar", HEIGHT - 60)
 
 
 class FinishedState(BaseState):

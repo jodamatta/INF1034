@@ -10,9 +10,7 @@
   "powerups": [
     { "type": "hp",    "value": 1, "x": 200, "y": 60 },
     { "type": "ammo",  "value": 4, "x": 60,  "y": 220,
-      "movement": { "start": [60,220], "end": [60,300], "speed": 0.018 } },
-    { "type": "speed", "value": 4, "x": 460, "y": 220,
-      "movement": { "start": [460,220], "end": [460,300], "speed": 0.018 } }
+      "movement": { "start": [60,220], "end": [60,300], "speed": 0.018 } }
   ],
   "ammo": 6
 }

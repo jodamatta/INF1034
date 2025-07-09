@@ -2,16 +2,8 @@
   "background_rect": [128, 0, 128, 128],
   "targets": [
     { "x": 180, "y": 120 },
-    { "x": 280, "y": 120 }
-  ],
-  "cannons": [
-  { "x": 50, "y": 50, "direction": "down" },
-  { "x": 400, "y": 100, "direction": "left" }
- ],
-  "powerups": [
-    { "type": "ammo", "value": 3, "x": 280, "y": 220,
-      "movement": { "start": [280, 220], "end": [280, 300], "speed": 0.02 } }
+    { "x": 280, "y": 120 },
+    { "x": 380, "y": 120 }
   ],
   "ammo": 6
 }
-

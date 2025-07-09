@@ -24,7 +24,5 @@ class ScoreManager:
 
     @classmethod
     def get_score(cls, remaining_hp):
-        print(remaining_hp)
-        print(cls.not_used_bullets)
         return remaining_hp * 100 + cls.not_used_bullets * 10
 

@@ -14,9 +14,7 @@
     { "type": "ammo",  "value": 6, "x": 250, "y": 420,
       "movement": { "start": [250,420], "end": [250,500], "speed": 0.015 } },
     { "type": "hp",    "value": 1, "x": 80,  "y": 60,
-      "movement": { "start": [80,60], "end": [150,60], "speed": 0.015 } },
-    { "type": "speed", "value": 6, "x": 430, "y": 60,
-      "movement": { "start": [430,60], "end": [360,60], "speed": 0.015 } }
+      "movement": { "start": [80,60], "end": [150,60], "speed": 0.015 } }
   ],
   "ammo": 6
 }

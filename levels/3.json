@@ -9,9 +9,7 @@
   ],
   "powerups": [
     { "type": "ammo",  "value": 4, "x": 250, "y": 420,
-      "movement": { "start": [250,420], "end": [350,420], "speed": 0.02 } },
-    { "type": "speed", "value": 4, "x": 100, "y": 50,
-      "movement": { "start": [100,50], "end": [100,130], "speed": 0.02 } }
+      "movement": { "start": [250,420], "end": [350,420], "speed": 0.02 } }
   ],
   "ammo": 5
 }

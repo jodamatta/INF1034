@@ -1,0 +1,12 @@
+{
+  "background_rect": [128, 0, 128, 128],
+  "targets": [
+    { "x": 180, "y": 350 },
+    { "x": 180, "y": 120, "movement": { "start": [180,120], "end": [180,320], "speed": 0.05 }  }
+  ],
+  "cannons": [
+  { "x": 400, "y": 200, "direction": "left" }
+ ],
+  
+  "ammo": 3
+}

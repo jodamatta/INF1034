@@ -57,3 +57,10 @@ BULLET_IMGS = {
 ACTIVE_TARGET  = load_full_img("target_alive.png",  TARGET_SCALE)
 DESTROYED_TGT  = load_full_img("target_dead.png", TARGET_SCALE)
 HEART = load_full_img("heart.png", HEART_SCALE)
+
+POWERUPS = {
+    "powerups1": load_img("powerups.png", (56, 0, 8, 8),  SHIP_SCALE).convert_alpha(),
+    "powerups2": load_img("powerups.png", (64, 0, 8, 8),  SHIP_SCALE).convert_alpha()
+}
+
+LOGO = load_full_img("logo.png", 5)
